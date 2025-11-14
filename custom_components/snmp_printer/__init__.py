@@ -70,12 +70,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         priv_key=entry.data.get("priv_key"),
     )
 
-    # Verify connection
-    try:
-        await snmp_client.get_system_info()
-    except Exception as err:
-        raise ConfigEntryNotReady(f"Unable to connect to printer: {err}") from err
-
     # Get update interval from config or options
     update_interval = entry.options.get(
         CONF_UPDATE_INTERVAL,
@@ -166,8 +160,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         update_interval=timedelta(seconds=update_interval),
     )
 
-    # Fetch initial data
-    await coordinator.async_config_entry_first_refresh()
+    # Fetch initial data (non-blocking, allows offline printers to complete setup)
+    # This prevents blocking Home Assistant boot when printer is unreachable
+    await coordinator.async_refresh()
 
     # Store coordinator, client, and storage
     hass.data[DOMAIN][entry.entry_id] = {
