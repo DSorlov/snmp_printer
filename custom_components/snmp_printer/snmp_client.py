@@ -27,7 +27,7 @@ from pysnmp.proto.rfc1902 import OctetString
 
 from .const import (
     DEFAULT_ERROR_LOG_INTERVAL,
-    DEVICE_STATUS,
+    PRINTER_STATUS,
     OID_COVER_DESCRIPTION,
     OID_COVER_STATUS,
     OID_DEVICE_DESCRIPTION,
@@ -310,7 +310,7 @@ class SNMPClient:
 
     async def get_device_info(self) -> dict[str, Any]:
         """Get device information."""
-        device_state = await self._get_oid(OID_DEVICE_STATE)
+        device_state = await self._get_oid(OID_PRINTER_STATUS)
         serial = await self._get_oid(OID_SERIAL_NUMBER)
         mac = await self._get_oid(OID_HARDWARE_ADDRESS)
 
@@ -326,7 +326,7 @@ class SNMPClient:
         page_counts = await self.get_page_counts()
 
         return {
-            "state": DEVICE_STATUS.get(
+            "state": PRINTER_STATUS.get(
                 int(device_state) if device_state else 1, "unknown"
             ),
             "errors": await self._get_oid(OID_DEVICE_ERRORS),
