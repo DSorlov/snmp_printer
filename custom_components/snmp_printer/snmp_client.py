@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import time
@@ -27,7 +28,6 @@ from pysnmp.proto.rfc1902 import OctetString
 
 from .const import (
     DEFAULT_ERROR_LOG_INTERVAL,
-    PRINTER_STATUS,
     OID_COVER_DESCRIPTION,
     OID_COVER_STATUS,
     OID_DEVICE_DESCRIPTION,
@@ -53,8 +53,10 @@ from .const import (
     OID_SYSTEM_LOCATION,
     OID_SYSTEM_NAME,
     OID_SYSTEM_UPTIME,
+    PRINTER_STATUS,
     SUPPLY_CLASS,
     SUPPLY_TYPE,
+    UNSUPPORTED_OID_ERRORS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -169,7 +171,10 @@ class SNMPClient:
     async def _ensure_transport(self):
         """Ensure transport and engine are created (async operation)."""
         if self._engine is None:
-            self._engine = SnmpEngine()
+            # SnmpEngine() performs blocking filesystem I/O (loading MIBs), so
+            # build it in an executor to avoid blocking the event loop (issue #20).
+            loop = asyncio.get_running_loop()
+            self._engine = await loop.run_in_executor(None, SnmpEngine)
         if self._transport is None:
             self._transport = await UdpTransportTarget.create(
                 (self.host, self.port),
@@ -230,14 +235,42 @@ class SNMPClient:
             self._handle_snmp_error(f"SNMP error: {errorIndication}")
             return None
         elif errorStatus:
+            error_name = errorStatus.prettyPrint()
+            # noSuchName/noSuchObject/noSuchInstance mean the printer simply does
+            # not expose this OID. That is not a connection failure, so log it at
+            # debug level instead of spamming the error log (issue #14).
+            if error_name in UNSUPPORTED_OID_ERRORS:
+                self._mark_connection_success()
+                _LOGGER.debug(
+                    "Printer %s: OID %s not supported (%s)",
+                    self.host,
+                    oid,
+                    error_name,
+                )
+                return None
             self._handle_snmp_error(
-                f"SNMP error: {errorStatus.prettyPrint()} at {errorIndex and varBinds[int(errorIndex) - 1][0] or '?'}"
+                f"SNMP error: {error_name} at {errorIndex and varBinds[int(errorIndex) - 1][0] or '?'}"
             )
             return None
 
         for varBind in varBinds:
             self._mark_connection_success()
-            return varBind[1].prettyPrint()
+            value = varBind[1]
+            # SNMPv2c/v3 report missing OIDs as exception values in the varbind
+            # rather than via errorStatus. Treat them the same as unsupported.
+            if type(value).__name__ in (
+                "NoSuchObject",
+                "NoSuchInstance",
+                "EndOfMibView",
+            ):
+                _LOGGER.debug(
+                    "Printer %s: OID %s not supported (%s)",
+                    self.host,
+                    oid,
+                    type(value).__name__,
+                )
+                return None
+            return value.prettyPrint()
 
         return None
 
@@ -260,8 +293,20 @@ class SNMPClient:
                 self._handle_snmp_error(f"SNMP walk error: {errorIndication}")
                 break
             elif errorStatus:
+                error_name = errorStatus.prettyPrint()
+                # Unsupported OID subtrees are expected on many printers and
+                # should not be logged as connection errors (issue #14).
+                if error_name in UNSUPPORTED_OID_ERRORS:
+                    self._mark_connection_success()
+                    _LOGGER.debug(
+                        "Printer %s: OID subtree %s not supported (%s)",
+                        self.host,
+                        oid,
+                        error_name,
+                    )
+                    break
                 self._handle_snmp_error(
-                    f"SNMP walk error: {errorStatus.prettyPrint()} at {errorIndex and varBinds[int(errorIndex) - 1][0] or '?'}"
+                    f"SNMP walk error: {error_name} at {errorIndex and varBinds[int(errorIndex) - 1][0] or '?'}"
                 )
                 break
             else:

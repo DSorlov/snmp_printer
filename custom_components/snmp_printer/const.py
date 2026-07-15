@@ -25,6 +25,13 @@ DEFAULT_ERROR_LOG_INTERVAL: Final = (
     300  # Log offline errors at most once every 5 minutes
 )
 
+# SNMP error statuses that indicate an OID is simply not supported by the
+# printer rather than a connection problem. These must not be treated as
+# offline/connection errors or logged repeatedly (issue #14).
+UNSUPPORTED_OID_ERRORS: Final = frozenset(
+    {"noSuchName", "noSuchObject", "noSuchInstance"}
+)
+
 # SNMP OIDs based on RFC 3805 (Printer MIB) and RFC 1213 (MIB-II)
 # System information
 OID_SYSTEM_DESCRIPTION: Final = "1.3.6.1.2.1.1.1.0"
