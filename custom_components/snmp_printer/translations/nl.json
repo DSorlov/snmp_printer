@@ -4,7 +4,11 @@
     "step": {
       "user": {
         "title": "SNMP-printer instellen",
-        "description": "Configureer uw SNMP-compatibele printer"
+        "description": "Configureer uw SNMP-compatibele printer",
+        "menu_options": {
+          "manual": "Printergegevens handmatig invoeren",
+          "scan": "Netwerkbereik scannen op printers"
+        }
       },
       "zeroconf_confirm": {
         "title": "SNMP-printer ontdekt",
@@ -25,9 +29,29 @@
           "priv_key": "Privacysleutel",
           "update_interval": "Update-interval (seconden)"
         }
+      },
+      "scan": {
+        "title": "Netwerk scannen op printers",
+        "description": "Voer een netwerkbereik in CIDR-notatie in om te zoeken naar SNMP-compatibele printers.",
+        "data": {
+          "subnet": "Netwerkbereik (CIDR, bijv. 192.168.1.0/24)",
+          "snmp_version": "SNMP-versie",
+          "community": "Community-string",
+          "port": "Poort"
+        }
+      },
+      "scan_select": {
+        "title": "Printer selecteren",
+        "description": "{count} printer(s) gevonden op het netwerk. Selecteer er een om toe te voegen.",
+        "data": {
+          "host": "Printer"
+        }
       }
     },
     "error": {
+      "invalid_subnet": "Ongeldig netwerkbereik. Gebruik CIDR-notatie, bijvoorbeeld 192.168.1.0/24.",
+      "subnet_too_large": "Dat netwerkbereik is te groot om te scannen. Kies een kleiner bereik.",
+      "no_printers_found": "Er zijn geen SNMP-printers gevonden in dat bereik.",
       "cannot_connect": "Kan geen verbinding maken met de printer. Controleer uw instellingen en zorg ervoor dat SNMP is ingeschakeld.",
       "unknown": "Onverwachte fout opgetreden"
     },
@@ -48,7 +72,8 @@
           "auth_key": "Authenticatiesleutel",
           "priv_protocol": "Privacyprotocol",
           "priv_key": "Privacysleutel",
-          "update_interval": "Update-interval (seconden)"
+          "update_interval": "Update-interval (seconden)",
+          "name_source": "Bron voor apparaatnaam"
         }
       }
     },

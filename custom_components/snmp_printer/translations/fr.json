@@ -4,7 +4,11 @@
     "step": {
       "user": {
         "title": "Configuration de l'imprimante SNMP",
-        "description": "Configurez votre imprimante compatible SNMP"
+        "description": "Configurez votre imprimante compatible SNMP",
+        "menu_options": {
+          "manual": "Saisir les détails de l'imprimante manuellement",
+          "scan": "Rechercher des imprimantes dans une plage réseau"
+        }
       },
       "zeroconf_confirm": {
         "title": "Imprimante SNMP découverte",
@@ -25,9 +29,29 @@
           "priv_key": "Clé de confidentialité",
           "update_interval": "Intervalle de mise à jour (secondes)"
         }
+      },
+      "scan": {
+        "title": "Rechercher des imprimantes sur le réseau",
+        "description": "Entrez une plage réseau en notation CIDR pour rechercher des imprimantes compatibles SNMP.",
+        "data": {
+          "subnet": "Plage réseau (CIDR, par ex. 192.168.1.0/24)",
+          "snmp_version": "Version SNMP",
+          "community": "Chaîne de communauté",
+          "port": "Port"
+        }
+      },
+      "scan_select": {
+        "title": "Sélectionner une imprimante",
+        "description": "{count} imprimante(s) trouvée(s) sur le réseau. Sélectionnez-en une à ajouter.",
+        "data": {
+          "host": "Imprimante"
+        }
       }
     },
     "error": {
+      "invalid_subnet": "Plage réseau non valide. Utilisez la notation CIDR, par exemple 192.168.1.0/24.",
+      "subnet_too_large": "Cette plage réseau est trop grande à analyser. Choisissez une plage plus petite.",
+      "no_printers_found": "Aucune imprimante SNMP trouvée dans cette plage.",
       "cannot_connect": "Échec de la connexion à l'imprimante. Vérifiez vos paramètres et assurez-vous que SNMP est activé.",
       "unknown": "Une erreur inattendue s'est produite"
     },
@@ -48,7 +72,8 @@
           "auth_key": "Clé d'authentification",
           "priv_protocol": "Protocole de confidentialité",
           "priv_key": "Clé de confidentialité",
-          "update_interval": "Intervalle de mise à jour (secondes)"
+          "update_interval": "Intervalle de mise à jour (secondes)",
+          "name_source": "Source du nom de l'appareil"
         }
       }
     },

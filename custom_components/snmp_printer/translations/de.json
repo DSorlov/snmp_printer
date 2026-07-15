@@ -4,7 +4,11 @@
     "step": {
       "user": {
         "title": "SNMP-Drucker einrichten",
-        "description": "Konfigurieren Sie Ihren SNMP-fähigen Drucker"
+        "description": "Konfigurieren Sie Ihren SNMP-fähigen Drucker",
+        "menu_options": {
+          "manual": "Druckerdetails manuell eingeben",
+          "scan": "Netzwerkbereich nach Druckern durchsuchen"
+        }
       },
       "zeroconf_confirm": {
         "title": "SNMP-Drucker erkannt",
@@ -25,9 +29,29 @@
           "priv_key": "Datenschutzschlüssel",
           "update_interval": "Aktualisierungsintervall (Sekunden)"
         }
+      },
+      "scan": {
+        "title": "Netzwerk nach Druckern durchsuchen",
+        "description": "Geben Sie einen Netzwerkbereich in CIDR-Notation ein, um nach SNMP-fähigen Druckern zu suchen.",
+        "data": {
+          "subnet": "Netzwerkbereich (CIDR, z. B. 192.168.1.0/24)",
+          "snmp_version": "SNMP-Version",
+          "community": "Community-Zeichenfolge",
+          "port": "Port"
+        }
+      },
+      "scan_select": {
+        "title": "Drucker auswählen",
+        "description": "{count} Drucker im Netzwerk gefunden. Wählen Sie einen zum Hinzufügen aus.",
+        "data": {
+          "host": "Drucker"
+        }
       }
     },
     "error": {
+      "invalid_subnet": "Ungültiger Netzwerkbereich. Verwenden Sie die CIDR-Notation, z. B. 192.168.1.0/24.",
+      "subnet_too_large": "Dieser Netzwerkbereich ist zu groß zum Durchsuchen. Wählen Sie einen kleineren Bereich.",
+      "no_printers_found": "In diesem Bereich wurden keine SNMP-Drucker gefunden.",
       "cannot_connect": "Verbindung zum Drucker fehlgeschlagen. Überprüfen Sie Ihre Einstellungen und stellen Sie sicher, dass SNMP aktiviert ist.",
       "unknown": "Unerwarteter Fehler aufgetreten"
     },
@@ -48,7 +72,8 @@
           "auth_key": "Authentifizierungsschlüssel",
           "priv_protocol": "Datenschutzprotokoll",
           "priv_key": "Datenschutzschlüssel",
-          "update_interval": "Aktualisierungsintervall (Sekunden)"
+          "update_interval": "Aktualisierungsintervall (Sekunden)",
+          "name_source": "Quelle des Gerätenamens"
         }
       }
     },

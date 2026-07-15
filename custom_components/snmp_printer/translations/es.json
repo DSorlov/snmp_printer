@@ -4,7 +4,11 @@
     "step": {
       "user": {
         "title": "Configuración de impresora SNMP",
-        "description": "Configure su impresora compatible con SNMP"
+        "description": "Configure su impresora compatible con SNMP",
+        "menu_options": {
+          "manual": "Ingresar los detalles de la impresora manualmente",
+          "scan": "Buscar impresoras en un rango de red"
+        }
       },
       "zeroconf_confirm": {
         "title": "Impresora SNMP descubierta",
@@ -25,9 +29,29 @@
           "priv_key": "Clave de privacidad",
           "update_interval": "Intervalo de actualización (segundos)"
         }
+      },
+      "scan": {
+        "title": "Buscar impresoras en la red",
+        "description": "Ingrese un rango de red en notación CIDR para buscar impresoras compatibles con SNMP.",
+        "data": {
+          "subnet": "Rango de red (CIDR, p. ej. 192.168.1.0/24)",
+          "snmp_version": "Versión SNMP",
+          "community": "Cadena de comunidad",
+          "port": "Puerto"
+        }
+      },
+      "scan_select": {
+        "title": "Seleccionar impresora",
+        "description": "Se encontraron {count} impresora(s) en la red. Seleccione una para agregar.",
+        "data": {
+          "host": "Impresora"
+        }
       }
     },
     "error": {
+      "invalid_subnet": "Rango de red no válido. Use notación CIDR, por ejemplo 192.168.1.0/24.",
+      "subnet_too_large": "Ese rango de red es demasiado grande para escanear. Elija un rango más pequeño.",
+      "no_printers_found": "No se encontraron impresoras SNMP en ese rango.",
       "cannot_connect": "No se pudo conectar a la impresora. Verifique su configuración y asegúrese de que SNMP esté habilitado.",
       "unknown": "Ocurrió un error inesperado"
     },
@@ -48,7 +72,8 @@
           "auth_key": "Clave de autenticación",
           "priv_protocol": "Protocolo de privacidad",
           "priv_key": "Clave de privacidad",
-          "update_interval": "Intervalo de actualización (segundos)"
+          "update_interval": "Intervalo de actualización (segundos)",
+          "name_source": "Origen del nombre del dispositivo"
         }
       }
     },

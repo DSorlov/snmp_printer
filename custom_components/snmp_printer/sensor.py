@@ -130,9 +130,15 @@ class PrinterSensorBase(CoordinatorEntity, SensorEntity):
         # Use serial number or host as unique ID
         unique_id = info.get("serial_number", self._entry.data[CONF_HOST])
 
+        # Prefer a DNS-based device name when configured (issue #19), otherwise
+        # fall back to the SNMP model name and finally the host address.
+        dns_name = data.get("device_name") if data else None
+        snmp_name = model if model != "Unknown Printer" else self._entry.data[CONF_HOST]
+        device_name = dns_name or snmp_name
+
         device_info = DeviceInfo(
             identifiers={(DOMAIN, unique_id)},
-            name=model if model != "Unknown Printer" else self._entry.data[CONF_HOST],
+            name=device_name,
             manufacturer=manufacturer,
             model=model,
         )
@@ -168,7 +174,14 @@ class PrinterStatusSensor(PrinterSensorBase):
         self._attr_unique_id = f"{unique_id}_status"
         self._attr_icon = "mdi:printer"
         self._attr_device_class = SensorDeviceClass.ENUM
-        self._attr_options = ["idle", "printing", "warming_up", "online", "offline", "unknown"]
+        self._attr_options = [
+            "idle",
+            "printing",
+            "warming_up",
+            "online",
+            "offline",
+            "unknown",
+        ]
 
     @property
     def native_value(self) -> str:

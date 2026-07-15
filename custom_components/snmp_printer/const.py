@@ -13,6 +13,8 @@ CONF_AUTH_PROTOCOL: Final = "auth_protocol"
 CONF_AUTH_KEY: Final = "auth_key"
 CONF_PRIV_PROTOCOL: Final = "priv_protocol"
 CONF_PRIV_KEY: Final = "priv_key"
+CONF_NAME_SOURCE: Final = "name_source"
+CONF_SUBNET: Final = "subnet"
 
 # Defaults
 DEFAULT_PORT: Final = 161
@@ -20,9 +22,27 @@ DEFAULT_COMMUNITY: Final = "public"
 DEFAULT_UPDATE_INTERVAL: Final = 60
 DEFAULT_SNMP_VERSION: Final = "2c"
 
+# Device naming sources (issue #19)
+NAME_SOURCE_SNMP: Final = "snmp"
+NAME_SOURCE_DNS_HOSTNAME: Final = "dns_hostname"
+NAME_SOURCE_DNS_FQDN: Final = "dns_fqdn"
+DEFAULT_NAME_SOURCE: Final = NAME_SOURCE_SNMP
+
+# Network scan discovery (issue #12)
+SCAN_MAX_HOSTS: Final = 1024  # Refuse to scan networks larger than this
+SCAN_CONCURRENCY: Final = 40  # Max simultaneous SNMP probes during a scan
+SCAN_TIMEOUT: Final = 1.0  # Seconds per probe during a scan
+
 # Error logging configuration
 DEFAULT_ERROR_LOG_INTERVAL: Final = (
     300  # Log offline errors at most once every 5 minutes
+)
+
+# SNMP error statuses that indicate an OID is simply not supported by the
+# printer rather than a connection problem. These must not be treated as
+# offline/connection errors or logged repeatedly (issue #14).
+UNSUPPORTED_OID_ERRORS: Final = frozenset(
+    {"noSuchName", "noSuchObject", "noSuchInstance"}
 )
 
 # SNMP OIDs based on RFC 3805 (Printer MIB) and RFC 1213 (MIB-II)

@@ -4,7 +4,11 @@
     "step": {
       "user": {
         "title": "SNMP-tulostimen asetukset",
-        "description": "Määritä SNMP-yhteensopiva tulostin"
+        "description": "Määritä SNMP-yhteensopiva tulostin",
+        "menu_options": {
+          "manual": "Syötä tulostimen tiedot manuaalisesti",
+          "scan": "Etsi tulostimia verkkoalueelta"
+        }
       },
       "zeroconf_confirm": {
         "title": "Havaittu SNMP-tulostin",
@@ -25,9 +29,29 @@
           "priv_key": "Yksityisyysavain",
           "update_interval": "Päivitysväli (sekuntia)"
         }
+      },
+      "scan": {
+        "title": "Etsi tulostimia verkosta",
+        "description": "Syötä verkkoalue CIDR-muodossa etsiäksesi SNMP-yhteensopivia tulostimia.",
+        "data": {
+          "subnet": "Verkkoalue (CIDR, esim. 192.168.1.0/24)",
+          "snmp_version": "SNMP-versio",
+          "community": "Community-merkkijono",
+          "port": "Portti"
+        }
+      },
+      "scan_select": {
+        "title": "Valitse tulostin",
+        "description": "Verkosta löytyi {count} tulostin(ta). Valitse yksi lisättäväksi.",
+        "data": {
+          "host": "Tulostin"
+        }
       }
     },
     "error": {
+      "invalid_subnet": "Virheellinen verkkoalue. Käytä CIDR-muotoa, esimerkiksi 192.168.1.0/24.",
+      "subnet_too_large": "Verkkoalue on liian suuri skannattavaksi. Valitse pienempi alue.",
+      "no_printers_found": "Alueelta ei löytynyt SNMP-tulostimia.",
       "cannot_connect": "Tulostimeen ei voitu muodostaa yhteyttä. Tarkista asetuksesi ja varmista, että SNMP on käytössä.",
       "unknown": "Odottamaton virhe tapahtui"
     },
@@ -48,7 +72,8 @@
           "auth_key": "Todennusavain",
           "priv_protocol": "Yksityisyysprotokolla",
           "priv_key": "Yksityisyysavain",
-          "update_interval": "Päivitysväli (sekuntia)"
+          "update_interval": "Päivitysväli (sekuntia)",
+          "name_source": "Laitteen nimen lähde"
         }
       }
     },

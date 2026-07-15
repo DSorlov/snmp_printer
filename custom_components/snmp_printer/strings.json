@@ -4,7 +4,11 @@
     "step": {
       "user": {
         "title": "SNMP Printer Setup",
-        "description": "Configure your SNMP-enabled printer"
+        "description": "Configure your SNMP-enabled printer",
+        "menu_options": {
+          "manual": "Enter printer details manually",
+          "scan": "Scan a network range for printers"
+        }
       },
       "zeroconf_confirm": {
         "title": "Discovered SNMP Printer",
@@ -25,9 +29,29 @@
           "priv_key": "Privacy Key",
           "update_interval": "Update Interval (seconds)"
         }
+      },
+      "scan": {
+        "title": "Scan Network for Printers",
+        "description": "Enter a network range in CIDR notation to search for SNMP-enabled printers.",
+        "data": {
+          "subnet": "Network range (CIDR, e.g. 192.168.1.0/24)",
+          "snmp_version": "SNMP Version",
+          "community": "Community String",
+          "port": "Port"
+        }
+      },
+      "scan_select": {
+        "title": "Select Printer",
+        "description": "Found {count} printer(s) on the network. Select one to add.",
+        "data": {
+          "host": "Printer"
+        }
       }
     },
     "error": {
+      "invalid_subnet": "Invalid network range. Use CIDR notation, for example 192.168.1.0/24.",
+      "subnet_too_large": "That network range is too large to scan. Choose a smaller range.",
+      "no_printers_found": "No SNMP printers were found in that range.",
       "cannot_connect": "Failed to connect to the printer. Check your settings and ensure SNMP is enabled.",
       "unknown": "Unexpected error occurred"
     },
@@ -48,7 +72,8 @@
           "auth_key": "Authentication Key",
           "priv_protocol": "Privacy Protocol",
           "priv_key": "Privacy Key",
-          "update_interval": "Update Interval (seconds)"
+          "update_interval": "Update Interval (seconds)",
+          "name_source": "Device name source"
         }
       }
     },
