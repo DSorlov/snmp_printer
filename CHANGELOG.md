@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-07-15
+
+### Added
+- Optional DNS-based device naming (Issue #19): device names can now use the
+  reverse-DNS short hostname or FQDN instead of the SNMP name, configurable per
+  printer under the integration options. Falls back to the SNMP name when the
+  lookup fails.
+- Network range scanning (Issue #12): the "Add" flow now offers a menu to either
+  enter a printer manually or scan a network range (CIDR, e.g. `192.168.10.0/24`)
+  to discover SNMP printers, including on subnets other than Home Assistant's own.
+
+### Changed
+- Reverse-DNS lookups run in an executor and are cached to avoid per-poll work.
+- Network scans probe hosts concurrently, skip already-configured printers, and
+  log unreachable hosts at debug level to avoid noise.
+- Refactored the model/manufacturer extraction into shared helpers used by both
+  discovery paths.
+
 ## [1.2.0] - 2026-07-15
 
 ### Fixed

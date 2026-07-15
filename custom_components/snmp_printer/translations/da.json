@@ -4,7 +4,11 @@
     "step": {
       "user": {
         "title": "SNMP-printer opsætning",
-        "description": "Konfigurer din SNMP-aktiverede printer"
+        "description": "Konfigurer din SNMP-aktiverede printer",
+        "menu_options": {
+          "manual": "Indtast printerdetaljer manuelt",
+          "scan": "Scan et netværksområde for printere"
+        }
       },
       "zeroconf_confirm": {
         "title": "Opdaget SNMP-printer",
@@ -25,9 +29,29 @@
           "priv_key": "Privatlivsnøgle",
           "update_interval": "Opdateringsinterval (sekunder)"
         }
+      },
+      "scan": {
+        "title": "Scan netværk for printere",
+        "description": "Indtast et netværksområde i CIDR-notation for at søge efter SNMP-aktiverede printere.",
+        "data": {
+          "subnet": "Netværksområde (CIDR, f.eks. 192.168.1.0/24)",
+          "snmp_version": "SNMP-version",
+          "community": "Community-streng",
+          "port": "Port"
+        }
+      },
+      "scan_select": {
+        "title": "Vælg printer",
+        "description": "Fandt {count} printer(e) på netværket. Vælg en at tilføje.",
+        "data": {
+          "host": "Printer"
+        }
       }
     },
     "error": {
+      "invalid_subnet": "Ugyldigt netværksområde. Brug CIDR-notation, f.eks. 192.168.1.0/24.",
+      "subnet_too_large": "Dette netværksområde er for stort at scanne. Vælg et mindre område.",
+      "no_printers_found": "Ingen SNMP-printere blev fundet i det område.",
       "cannot_connect": "Kunne ikke oprette forbindelse til printeren. Kontroller dine indstillinger og sørg for, at SNMP er aktiveret.",
       "unknown": "Uventet fejl opstod"
     },
@@ -48,7 +72,8 @@
           "auth_key": "Autentificeringsnøgle",
           "priv_protocol": "Privatlivsprotokol",
           "priv_key": "Privatlivsnøgle",
-          "update_interval": "Opdateringsinterval (sekunder)"
+          "update_interval": "Opdateringsinterval (sekunder)",
+          "name_source": "Kilde til enhedsnavn"
         }
       }
     },

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import ipaddress
 import logging
 from typing import Any
 
@@ -10,24 +12,91 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_USERNAME
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.selector import (
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .const import (
     CONF_AUTH_KEY,
     CONF_AUTH_PROTOCOL,
     CONF_COMMUNITY,
+    CONF_NAME_SOURCE,
     CONF_PRIV_KEY,
     CONF_PRIV_PROTOCOL,
     CONF_SNMP_VERSION,
+    CONF_SUBNET,
     CONF_UPDATE_INTERVAL,
     DEFAULT_COMMUNITY,
+    DEFAULT_NAME_SOURCE,
     DEFAULT_PORT,
+    DEFAULT_SNMP_VERSION,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
+    NAME_SOURCE_DNS_FQDN,
+    NAME_SOURCE_DNS_HOSTNAME,
+    NAME_SOURCE_SNMP,
+    SCAN_CONCURRENCY,
+    SCAN_MAX_HOSTS,
+    SCAN_TIMEOUT,
 )
 from .snmp_client import SNMPClient
 
 _LOGGER = logging.getLogger(__name__)
+
+# Manufacturer tokens searched for (in order) inside the SNMP system description.
+_MANUFACTURERS = (
+    "Canon",
+    "Epson",
+    "Brother",
+    "Lexmark",
+    "Samsung",
+    "Xerox",
+    "Konica Minolta",
+    "Kyocera",
+    "OKI",
+    "Panasonic",
+    "Ricoh",
+    "Sharp",
+)
+
+# Selector options for the device-name source (issue #19).
+_NAME_SOURCE_OPTIONS = [
+    {"value": NAME_SOURCE_SNMP, "label": "SNMP name (default)"},
+    {"value": NAME_SOURCE_DNS_HOSTNAME, "label": "DNS hostname"},
+    {"value": NAME_SOURCE_DNS_FQDN, "label": "DNS FQDN (full)"},
+]
+
+
+def _extract_model(system_info: dict[str, Any]) -> str:
+    """Derive a printer model name from SNMP system information."""
+    description = system_info.get("description") or ""
+    location = system_info.get("location") or ""
+    name = system_info.get("name") or ""
+
+    if description and "PID:" in description:
+        parts = description.split("PID:")
+        if len(parts) > 1:
+            return parts[1].split(",")[0].split(";")[0].strip()
+    if location:
+        return location
+    if name:
+        return name
+    return "Unknown Printer"
+
+
+def _extract_manufacturer(description: str) -> str:
+    """Derive the manufacturer name from an SNMP system description."""
+    if not description:
+        return "Unknown"
+    if "HP" in description or "Hewlett-Packard" in description:
+        return "HP"
+    for manufacturer in _MANUFACTURERS:
+        if manufacturer in description:
+            return manufacturer
+    return "Unknown"
 
 
 class SNMPPrinterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -41,12 +110,174 @@ class SNMPPrinterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         """Initialize the config flow."""
         self.discovery_info = {}
+        self._scan_results: list[dict[str, Any]] = []
+        self._scan_params: dict[str, Any] = {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step."""
-        return await self.async_step_manual()
+        """Handle the initial step by letting the user pick an entry method."""
+        return self.async_show_menu(
+            step_id="user",
+            menu_options=["manual", "scan"],
+        )
+
+    async def async_step_scan(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Scan a network range for SNMP printers (issue #12)."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            subnet = user_input[CONF_SUBNET]
+            snmp_version = user_input.get(CONF_SNMP_VERSION, DEFAULT_SNMP_VERSION)
+            community = user_input.get(CONF_COMMUNITY, DEFAULT_COMMUNITY)
+            port = user_input.get(CONF_PORT, DEFAULT_PORT)
+
+            try:
+                network = ipaddress.ip_network(subnet, strict=False)
+            except ValueError:
+                errors["base"] = "invalid_subnet"
+            else:
+                hosts = list(network.hosts()) or [network.network_address]
+                if len(hosts) > SCAN_MAX_HOSTS:
+                    errors["base"] = "subnet_too_large"
+                else:
+                    results = await self._scan_hosts(
+                        hosts, snmp_version, community, port
+                    )
+                    if not results:
+                        errors["base"] = "no_printers_found"
+                    else:
+                        self._scan_results = results
+                        self._scan_params = {
+                            CONF_SNMP_VERSION: snmp_version,
+                            CONF_COMMUNITY: community,
+                            CONF_PORT: port,
+                        }
+                        return await self.async_step_scan_select()
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_SUBNET,
+                    default=user_input.get(CONF_SUBNET, "") if user_input else "",
+                ): str,
+                vol.Optional(CONF_SNMP_VERSION, default=DEFAULT_SNMP_VERSION): vol.In(
+                    ["1", "2c"]
+                ),
+                vol.Optional(CONF_COMMUNITY, default=DEFAULT_COMMUNITY): str,
+                vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="scan",
+            data_schema=data_schema,
+            errors=errors,
+        )
+
+    async def _scan_hosts(
+        self,
+        hosts: list[Any],
+        snmp_version: str,
+        community: str,
+        port: int,
+    ) -> list[dict[str, Any]]:
+        """Probe each host concurrently and return the printers that respond."""
+        semaphore = asyncio.Semaphore(SCAN_CONCURRENCY)
+        existing = {
+            entry.data.get(CONF_HOST) for entry in self._async_current_entries()
+        }
+
+        async def probe(ip_addr: Any) -> dict[str, Any] | None:
+            host = str(ip_addr)
+            if host in existing:
+                return None
+            async with semaphore:
+                client = SNMPClient(
+                    host=host,
+                    port=port,
+                    snmp_version=snmp_version,
+                    community=community,
+                    timeout=SCAN_TIMEOUT,
+                    retries=0,
+                    quiet=True,
+                )
+                # Probe with a single OID first; unreachable hosts (the common
+                # case during a scan) are skipped after one timeout.
+                try:
+                    description = await client.get_description()
+                except Exception:  # pylint: disable=broad-except
+                    return None
+                if not description:
+                    return None
+                try:
+                    system_info = await client.get_system_info()
+                except Exception:  # pylint: disable=broad-except
+                    system_info = {"description": description}
+
+            if not system_info.get("description"):
+                system_info["description"] = description
+
+            model = _extract_model(system_info)
+            manufacturer = _extract_manufacturer(system_info.get("description") or "")
+            return {
+                CONF_HOST: host,
+                "model": model,
+                "manufacturer": manufacturer,
+            }
+
+        results = await asyncio.gather(*(probe(ip) for ip in hosts))
+        return [result for result in results if result]
+
+    async def async_step_scan_select(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Let the user pick a printer found during a network scan."""
+        if user_input is not None:
+            selected_host = user_input[CONF_HOST]
+            return await self.async_step_manual(
+                {
+                    CONF_HOST: selected_host,
+                    CONF_SNMP_VERSION: self._scan_params.get(
+                        CONF_SNMP_VERSION, DEFAULT_SNMP_VERSION
+                    ),
+                    CONF_PORT: self._scan_params.get(CONF_PORT, DEFAULT_PORT),
+                    CONF_COMMUNITY: self._scan_params.get(
+                        CONF_COMMUNITY, DEFAULT_COMMUNITY
+                    ),
+                    CONF_UPDATE_INTERVAL: DEFAULT_UPDATE_INTERVAL,
+                }
+            )
+
+        options = [
+            {
+                "value": result[CONF_HOST],
+                "label": (
+                    f"{result['manufacturer']} {result['model']} "
+                    f"({result[CONF_HOST]})"
+                ),
+            }
+            for result in self._scan_results
+        ]
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_HOST): SelectSelector(
+                    SelectSelectorConfig(
+                        options=options,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="scan_select",
+            data_schema=data_schema,
+            description_placeholders={"count": str(len(self._scan_results))},
+        )
 
     async def async_step_manual(
         self, user_input: dict[str, Any] | None = None
@@ -265,6 +496,7 @@ class SNMPPrinterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     community=DEFAULT_COMMUNITY,
                     timeout=2.5,  # 2.5 seconds per request
                     retries=1,  # 1 retry = total ~5 seconds max per version
+                    quiet=True,
                 )
                 system_info = await client.get_system_info()
                 device_info = await client.get_device_info()
@@ -323,39 +555,9 @@ class SNMPPrinterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.debug("System info from %s: %s", host, system_info)
             _LOGGER.debug("Device info from %s: %s", host, device_info)
 
-            # Extract manufacturer and model from description (same logic as sensor.py)
-            description = system_info.get("description") or ""
-            location = system_info.get("location") or ""
-            name = system_info.get("name") or ""
-
-            # Try to get model name from description PID field
-            model = "Unknown Printer"
-            if description and "PID:" in description:
-                parts = description.split("PID:")
-                if len(parts) > 1:
-                    model = parts[1].split(",")[0].split(";")[0].strip()
-            elif location:
-                model = location
-            elif name:
-                model = name
-
-            # Extract manufacturer
-            manufacturer = "Unknown"
-            if description:
-                if "HP" in description or "Hewlett-Packard" in description:
-                    manufacturer = "HP"
-                elif "Canon" in description:
-                    manufacturer = "Canon"
-                elif "Epson" in description:
-                    manufacturer = "Epson"
-                elif "Brother" in description:
-                    manufacturer = "Brother"
-                elif "Lexmark" in description:
-                    manufacturer = "Lexmark"
-                elif "Samsung" in description:
-                    manufacturer = "Samsung"
-                elif "Xerox" in description:
-                    manufacturer = "Xerox"
+            # Extract manufacturer and model from the SNMP description
+            model = _extract_model(system_info)
+            manufacturer = _extract_manufacturer(system_info.get("description") or "")
 
             # Get serial number for unique ID
             unique_id = device_info.get("serial_number")
@@ -496,6 +698,20 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         ),
                     ),
                 ): int,
+                vol.Optional(
+                    CONF_NAME_SOURCE,
+                    default=self.config_entry.options.get(
+                        CONF_NAME_SOURCE,
+                        self.config_entry.data.get(
+                            CONF_NAME_SOURCE, DEFAULT_NAME_SOURCE
+                        ),
+                    ),
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=_NAME_SOURCE_OPTIONS,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
             }
         )
 

@@ -78,12 +78,16 @@ class SNMPClient:
         priv_key: str | None = None,
         timeout: float = 1.0,
         retries: int = 3,
+        quiet: bool = False,
     ):
         """Initialize the SNMP client.
 
         Args:
             timeout: Timeout in seconds for each SNMP request (default 1.0)
             retries: Number of retries for failed requests (default 3)
+            quiet: When True, connection errors are logged at debug level only.
+                Used for network scans where most hosts are expected to be
+                unreachable (issue #12).
         """
         self.host = host
         self.port = port
@@ -96,6 +100,7 @@ class SNMPClient:
         self.priv_key = priv_key
         self.timeout = timeout
         self.retries = retries
+        self._quiet = quiet
 
         self._engine = None  # Will be created on first use
         self._transport = None  # Will be created async
@@ -116,6 +121,12 @@ class SNMPClient:
         """Handle SNMP errors with intelligent logging to reduce spam."""
         current_time = time.time()
         self._consecutive_failures += 1
+
+        # During scans most hosts are unreachable, so keep the log quiet.
+        if self._quiet:
+            self._connection_state = "offline"
+            _LOGGER.debug("Printer %s: %s", self.host, error_message)
+            return
 
         # Determine if we should log this error
         should_log_error = False
@@ -352,6 +363,10 @@ class SNMPClient:
             "location": await self._get_oid(OID_SYSTEM_LOCATION),
             "uptime": await self._get_oid(OID_SYSTEM_UPTIME),
         }
+
+    async def get_description(self) -> Any:
+        """Return only the system description (fast probe for discovery)."""
+        return await self._get_oid(OID_SYSTEM_DESCRIPTION)
 
     async def get_device_info(self) -> dict[str, Any]:
         """Get device information."""

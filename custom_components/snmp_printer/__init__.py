@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import socket
 from datetime import datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
@@ -14,7 +15,15 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
+from .const import (
+    CONF_NAME_SOURCE,
+    CONF_UPDATE_INTERVAL,
+    DEFAULT_NAME_SOURCE,
+    DEFAULT_UPDATE_INTERVAL,
+    DOMAIN,
+    NAME_SOURCE_DNS_FQDN,
+    NAME_SOURCE_DNS_HOSTNAME,
+)
 from .snmp_client import SNMPClient
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,6 +31,33 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 STORAGE_VERSION = 1
 STORAGE_KEY = "snmp_printer_cached_data"
+
+
+async def async_resolve_device_name(
+    hass: HomeAssistant, host: str, name_source: str
+) -> str | None:
+    """Resolve a device name from DNS (reverse lookup).
+
+    Returns the short hostname or FQDN depending on ``name_source``. Returns
+    ``None`` when DNS naming is not requested or the lookup fails, so callers
+    can fall back to the SNMP-based name (issue #19).
+    """
+    if name_source not in (NAME_SOURCE_DNS_HOSTNAME, NAME_SOURCE_DNS_FQDN):
+        return None
+
+    try:
+        result = await hass.async_add_executor_job(socket.gethostbyaddr, host)
+        fqdn = result[0]
+    except (socket.herror, socket.gaierror, OSError) as err:
+        _LOGGER.debug("Reverse DNS lookup failed for %s: %s", host, err)
+        return None
+
+    if not fqdn:
+        return None
+
+    if name_source == NAME_SOURCE_DNS_HOSTNAME:
+        return fqdn.split(".")[0]
+    return fqdn
 
 
 async def check_web_interface(host: str, hass: HomeAssistant) -> bool:
@@ -82,6 +118,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Load cached data
     cached_data = await store.async_load() or {}
 
+    # Device naming preference (issue #19). Reverse DNS results are cached so we
+    # don't perform a lookup on every poll.
+    name_source = entry.options.get(
+        CONF_NAME_SOURCE,
+        entry.data.get(CONF_NAME_SOURCE, DEFAULT_NAME_SOURCE),
+    )
+    dns_name_cache: dict[str, str | None] = {}
+
+    async def async_get_device_name() -> str | None:
+        """Return the DNS-based device name, caching the lookup."""
+        host = entry.data[CONF_HOST]
+        cache_key = f"{host}:{name_source}"
+        if cache_key not in dns_name_cache:
+            dns_name_cache[cache_key] = await async_resolve_device_name(
+                hass, host, name_source
+            )
+        return dns_name_cache[cache_key]
+
     # Create coordinator
     async def async_update_data():
         """Fetch data from SNMP printer."""
@@ -91,6 +145,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             data = {
                 "info": {**system_info, **device_info},
                 "status": device_info,
+                "device_name": await async_get_device_name(),
                 "cover_status": {"state": await snmp_client.get_cover_status()},
                 "page_count": device_info.get(
                     "page_counts", {"total": device_info.get("page_count")}

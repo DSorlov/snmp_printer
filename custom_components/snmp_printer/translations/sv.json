@@ -4,7 +4,11 @@
     "step": {
       "user": {
         "title": "SNMP-skrivare installation",
-        "description": "Konfigurera din SNMP-aktiverade skrivare"
+        "description": "Konfigurera din SNMP-aktiverade skrivare",
+        "menu_options": {
+          "manual": "Ange skrivaruppgifter manuellt",
+          "scan": "Sök efter skrivare i ett nätverksområde"
+        }
       },
       "zeroconf_confirm": {
         "title": "Upptäckt SNMP-skrivare",
@@ -25,9 +29,29 @@
           "priv_key": "Integritetsnyckel",
           "update_interval": "Uppdateringsintervall (sekunder)"
         }
+      },
+      "scan": {
+        "title": "Sök efter skrivare i nätverket",
+        "description": "Ange ett nätverksområde i CIDR-notation för att söka efter SNMP-aktiverade skrivare.",
+        "data": {
+          "subnet": "Nätverksområde (CIDR, t.ex. 192.168.1.0/24)",
+          "snmp_version": "SNMP-version",
+          "community": "Community-sträng",
+          "port": "Port"
+        }
+      },
+      "scan_select": {
+        "title": "Välj skrivare",
+        "description": "Hittade {count} skrivare i nätverket. Välj en att lägga till.",
+        "data": {
+          "host": "Skrivare"
+        }
       }
     },
     "error": {
+      "invalid_subnet": "Ogiltigt nätverksområde. Använd CIDR-notation, till exempel 192.168.1.0/24.",
+      "subnet_too_large": "Det nätverksområdet är för stort för att skanna. Välj ett mindre område.",
+      "no_printers_found": "Inga SNMP-skrivare hittades i det området.",
       "cannot_connect": "Kunde inte ansluta till skrivaren. Kontrollera dina inställningar och se till att SNMP är aktiverat.",
       "unknown": "Oväntat fel uppstod"
     },
@@ -48,7 +72,8 @@
           "auth_key": "Autentiseringsnyckel",
           "priv_protocol": "Integritetsprotokoll",
           "priv_key": "Integritetsnyckel",
-          "update_interval": "Uppdateringsintervall (sekunder)"
+          "update_interval": "Uppdateringsintervall (sekunder)",
+          "name_source": "Källa för enhetsnamn"
         }
       }
     },
