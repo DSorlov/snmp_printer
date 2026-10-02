@@ -410,6 +410,8 @@ class PrinterSupplySensor(PrinterSensorBase):
                     "type": supply.get("type"),
                     "color": supply.get("color"),
                     "description": supply.get("description"),
+                    "capacity": supply.get("max_capacity"),
+                    "level": supply.get("level"),
                 }
 
                 # Add offline information if using cached data
