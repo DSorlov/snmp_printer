@@ -438,19 +438,19 @@ class SNMPClient:
                 or "bk" in description_lower
             ):
                 color = "Black"
-            elif "cyan" in description_lower:
-                color = "Cyan"
-            elif "magenta" in description_lower:
-                color = "Magenta"
-            elif "yellow" in description_lower or "ylw" in description_lower:
-                color = "Yellow"
             elif "light cyan" in description_lower or "lightcyan" in description_lower:
                 color = "Light Cyan"
+            elif "cyan" in description_lower:
+                color = "Cyan"
             elif (
                 "light magenta" in description_lower
                 or "lightmagenta" in description_lower
             ):
                 color = "Light Magenta"
+            elif "magenta" in description_lower:
+                color = "Magenta"
+            elif "yellow" in description_lower or "ylw" in description_lower:
+                color = "Yellow"
             elif "photo" in description_lower:
                 color = "Photo"
             elif "gray" in description_lower or "grey" in description_lower:
